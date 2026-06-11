@@ -211,6 +211,8 @@ export default function App() {
   }
 
   function startScenario() {
+    timeoutRefs.current.forEach(clearTimeout)
+    timeoutRefs.current = []
     setScenarioRunning(true)
     setChatMessages([])
     setAuditLog([])
@@ -458,7 +460,7 @@ export default function App() {
                   <span style={{ fontWeight: 800, color: C.orangeText, fontSize: 13 }}>Urgent -- Incoming Event</span>
                 </div>
                 <p style={{ fontSize: 12, color: C.charcoal, marginBottom: 14, lineHeight: 1.6 }}>
-                  Meridian's CFO has replied. They are reviewing three vendors this week and need a response by end of business today. One of your agents has already reacted.
+                  Meridian's CFO has replied. They are reviewing three suppliers this week and need a response by end of business today. Your Research Agent has spotted it and flagged it to the team.
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <button onClick={handleTakeControl} style={{ padding: '10px 0', borderRadius: 9, background: C.white, color: C.black, border: `2px solid ${C.black}`, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
