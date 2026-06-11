@@ -1,10 +1,10 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { Lock, Mail, DollarSign, Search, RotateCcw, Coins, CheckCircle, AlertTriangle, Shield, TrendingUp, Users } from 'lucide-react'
-import { scenario, unexpectedEventMessages, SCENARIO_TITLE } from './data/scenario'
+import { scenario, SCENARIO_TITLE } from './data/scenario'
 
 type Level = 1 | 2 | 3
 type AgentKey = 'email' | 'finance' | 'research'
-type OutcomeKey = 'outcome1' | 'outcome2' | 'outcome3' | 'outcome4'
+type Choice = 'takeControl' | 'trustAgents'
 interface AgentConfig { id: AgentKey; initials: string; name: string; subtitle: string; app: string; color: string; bg: string; border: string }
 interface ChatMessage { id: string; agent: 'EA' | 'FA' | 'RA' | 'SYSTEM'; name: string; text: string; time: string; level?: Level; border?: string }
 interface AuditEntry { text: string; time: string }
@@ -67,27 +67,105 @@ const initialsToKey: Record<string, AgentKey> = { EA: 'email', FA: 'finance', RA
 function now() { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
 function uid() { return Math.random().toString(36).slice(2) }
 
-const OUTCOMES: Record<OutcomeKey, { title: string; body: string; card3: { heading: string; body: string } }> = {
-  outcome1: {
-    title: 'The Capable Team You Didn\'t Trust',
-    body: 'Your agents were configured to act independently and had the capability to handle this situation end to end. But when the pressure came, you stepped in anyway. Gartner\'s May 2026 research identifies this as one of the two most common governance failure modes -- over-restriction of capable agents, which slows delivery and signals a trust gap rather than a capability gap. The cost wasn\'t operational. It was the tokens you spent to achieve what your agents had already done.',
-    card3: { heading: 'The cost of over-control', body: 'Over-restriction of capable agents slows delivery and drives shadow development. Governance should be proportional to risk, not applied uniformly.' }
-  },
-  outcome2: {
-    title: 'Control Without Capability',
-    body: 'You chose to stay in control -- but your agents had no authority to prepare anything before you arrived. Gartner warns that organisations treating agent governance as binary -- either locked down or fully trusted -- encounter predictable failure. You experienced the locked-down version. Low autonomy didn\'t protect you. It just meant that when the moment came, there was nothing ready and everything depended on you acting fast with no preparation.',
-    card3: { heading: 'The cost of over-control', body: 'Over-restriction of simple agents slows delivery and drives shadow development. Governance should be proportional to risk, not applied uniformly.' }
-  },
-  outcome3: {
-    title: 'Trust Without Autonomy',
-    body: 'You chose to trust your agents -- but they weren\'t configured to act independently. Every message required your approval. Every step cost a token. Gartner\'s framework describes this as under-configuration: agents capable of more but constrained by directives that require human sign-off at every trust boundary. The result was a bottleneck at exactly the moment speed mattered most. According to Gartner, 40% of enterprises will decommission autonomous agents by 2027 due to governance gaps -- this scenario shows the opposite problem.',
-    card3: { heading: 'The bottleneck problem', body: 'Agents can deliver tangible value even at intermediate levels of autonomy -- but only if their directives match the decisions they are expected to make.' }
-  },
-  outcome4: {
-    title: 'Governance Done Right',
-    body: 'Your agents handled the situation end to end. Email sent, retention offer prepared, competitive intel filed, call scheduled -- before you finished reading the alert. Tokens spent: 0. This is what Gartner\'s proportional governance model looks like in practice. Each agent operated within its own trust boundary, taking action where authorised and briefing the team rather than escalating to the human. Gartner\'s May 2026 research notes that organisations applying proportional governance avoid both failure modes: over-restriction and under-restriction. You found the balance.',
-    card3: { heading: 'The $450 billion opportunity', body: 'AI agents could generate up to $450 billion in economic value by 2028 -- but only for organisations that successfully scale. Governance is the unlock, not the blocker.' }
-  },
+// --- Dynamic outcome builder ---
+
+function agentLine(agent: AgentKey, level: Level, context: 'trust' | 'control'): string {
+  if (agent === 'email') {
+    if (context === 'trust') {
+      if (level === 1) return 'Your Email Agent had a reply drafted but needed your sign-off before it could send anything.'
+      if (level === 2) return 'Your Email Agent sent a reply to the CFO without waiting for you.'
+      return 'Your Email Agent sent a personalised reply to the CFO, adjusted the tone based on competitive signals, and updated the team.'
+    } else {
+      if (level === 1) return 'Your Email Agent had a reply drafted, but nothing had been sent.'
+      if (level === 2) return 'Your Email Agent had already sent a reply to the CFO before you stepped in.'
+      return 'Your Email Agent had already sent a personalised reply, adjusted the tone, and updated the team — before you arrived.'
+    }
+  }
+  if (agent === 'finance') {
+    if (context === 'trust') {
+      if (level === 1) return 'Your Finance Agent had worked out the numbers but needed your go-ahead before preparing anything for the client.'
+      if (level === 2) return 'Your Finance Agent had a retention proposal ready and flagged it to you ahead of any call.'
+      return 'Your Finance Agent had the full offer packaged and added it to the outreach automatically.'
+    } else {
+      if (level === 1) return 'Your Finance Agent had the numbers modelled but nothing approved for the client.'
+      if (level === 2) return 'Your Finance Agent had already prepared a retention proposal before you arrived.'
+      return 'Your Finance Agent had the full offer packaged and ready before you arrived.'
+    }
+  }
+  // research
+  if (context === 'trust') {
+    if (level === 1) return 'Your Research Agent had spotted the competitive threat but was waiting for your go-ahead before sharing anything.'
+    if (level === 2) return 'Your Research Agent identified the competitive threat and briefed the other agents.'
+    return 'Your Research Agent identified the threat, briefed the team, and flagged four other accounts at risk.'
+  } else {
+    if (level === 1) return 'Your Research Agent had spotted the threat but had not been cleared to share it.'
+    if (level === 2) return 'Your Research Agent had already briefed the team on the competitive threat before you stepped in.'
+    return 'Your Research Agent had already briefed the team and flagged four other at-risk accounts before you arrived.'
+  }
+}
+
+function buildOutcome(
+  levels: Partial<Record<AgentKey, Level>>,
+  choice: Choice
+): { title: string; body: string; card3: { heading: string; body: string }; source: string } {
+  const el = (levels.email    || 1) as Level
+  const fl = (levels.finance  || 1) as Level
+  const rl = (levels.research || 1) as Level
+  const score = el + fl + rl
+  const ctx = choice === 'trustAgents' ? 'trust' : 'control'
+
+  const emailSentence   = agentLine('email',    el, ctx)
+  const financeSentence = agentLine('finance',  fl, ctx)
+  const researchSentence = agentLine('research', rl, ctx)
+  const agentSummary = `${researchSentence} ${emailSentence} ${financeSentence}`
+
+  if (choice === 'trustAgents') {
+    if (score >= 7) {
+      return {
+        title: 'Governance Done Right',
+        body: `You trusted your agents — and they delivered. ${agentSummary} The CFO has a response, a proposal is ready, and the team has full context on the competitive threat. This is what Gartner's proportional governance model looks like in practice: each agent operated within its own trust boundary, taking action where authorised and briefing the team rather than escalating to you. Gartner's May 2026 research notes that organisations applying proportional governance avoid both failure modes — over-restriction and under-restriction. You found the balance.`,
+        card3: { heading: 'The $450 billion opportunity', body: 'AI agents could generate up to $450 billion in economic value by 2028 — but only for organisations that successfully scale. Governance is the unlock, not the blocker.' },
+        source: 'CAPGEMINI, 2025',
+      }
+    } else if (score >= 5) {
+      return {
+        title: 'Trust Without Full Capability',
+        body: `You chose to trust your agents — but not all of them had room to act. ${agentSummary} The result was a partial response: some things handled, others stalled waiting for you. Gartner describes this as under-configuration — agents capable of more, but constrained by directives that require human sign-off at the wrong moments. The gap wasn't a capability problem. It was a governance setting.`,
+        card3: { heading: 'The bottleneck problem', body: 'Agents deliver value even at intermediate autonomy levels — but only when their directives match the decisions they are expected to make in a crisis.' },
+        source: 'GARTNER, MAY 2026',
+      }
+    } else {
+      return {
+        title: 'Trust Without Autonomy',
+        body: `You chose to trust your agents — but none of them had the authority to act without you. ${agentSummary} Every step needed your approval. Gartner's framework describes this as under-configuration: agents constrained to require human sign-off at every trust boundary. The result was a bottleneck at exactly the moment speed mattered most. According to Gartner, 40% of enterprises will decommission autonomous agents by 2027 due to governance gaps — this scenario shows the opposite problem.`,
+        card3: { heading: 'The bottleneck problem', body: 'Agents can deliver tangible value even at low autonomy levels — but only if their directives match the decisions they are expected to make.' },
+        source: 'GARTNER, MAY 2026',
+      }
+    }
+  } else {
+    if (score >= 7) {
+      return {
+        title: 'The Capable Team You Didn\'t Trust',
+        body: `Your agents were configured to act — and they had already done so before you pressed this button. ${agentSummary} You stepped in, but there was nothing left to do. Gartner's May 2026 research identifies this as one of the two most common governance failure modes: over-restriction of capable agents, which slows delivery and signals a trust gap rather than a capability gap. The cost wasn't operational. It was the tokens you spent to achieve what your agents had already done.`,
+        card3: { heading: 'The cost of over-control', body: 'Over-restriction of capable agents slows delivery and drives shadow development. Governance should be proportional to risk, not applied uniformly.' },
+        source: 'GARTNER, MAY 2026',
+      }
+    } else if (score >= 5) {
+      return {
+        title: 'Partial Control, Partial Capability',
+        body: `You stepped in — and found a mixed picture. ${agentSummary} Some agents had already moved; others were waiting on you. Taking control helped where your agents couldn't act, but added cost where they had already acted. Gartner notes that mixed governance configurations produce predictable inconsistency: you can't rely on agents in a crisis unless their directives are set for it.`,
+        card3: { heading: 'The cost of over-control', body: 'Governance should be proportional to risk. Where agents are configured to act, stepping in adds cost without adding value.' },
+        source: 'GARTNER, MAY 2026',
+      }
+    } else {
+      return {
+        title: 'Control Without Capability',
+        body: `You chose to take control — but your agents had no authority to prepare anything before you arrived. ${agentSummary} Nothing was sent, nothing was ready. Gartner warns that organisations treating agent governance as binary — either fully locked down or fully trusted — encounter predictable failure. You experienced the locked-down version. Low autonomy didn't protect you. It just meant there was nothing ready when the moment came.`,
+        card3: { heading: 'The cost of over-control', body: 'Over-restriction of agents slows delivery and drives shadow development. Governance should be proportional to risk, not applied uniformly.' },
+        source: 'GARTNER, MAY 2026',
+      }
+    }
+  }
 }
 
 function Avatar({ initials, color, bg, size = 40 }: { initials: string; color: string; bg: string; size?: number }) {
@@ -127,7 +205,7 @@ export default function App() {
   const [scenarioRunning, setScenarioRunning] = useState(false)
   const [pausedAt, setPausedAt] = useState<number | null>(null)
   const [showUnexpected, setShowUnexpected] = useState(false)
-  const [outcome, setOutcome] = useState<OutcomeKey | null>(null)
+  const [outcome, setOutcome] = useState<Choice | null>(null)
   const [showSummary, setShowSummary] = useState(false)
   const [tokensSpent, setTokensSpent] = useState(0)
   const chatRef = useRef<HTMLDivElement>(null)
@@ -143,7 +221,7 @@ export default function App() {
   }, [])
 
   const spendToken = useCallback((count = 1) => {
-    setTokens(t => Math.max(0, t - count))
+    setTokens(t => t - count)
     setTokensSpent(s => s + count)
     setTokenFlash(true)
     setTimeout(() => setTokenFlash(false), 500)
@@ -227,36 +305,20 @@ export default function App() {
   }
 
   function handleTakeControl() {
+    timeoutRefs.current.forEach(clearTimeout)
+    timeoutRefs.current = []
     setShowUnexpected(false)
-    const cost = capabilityScore >= 8 ? 2 : 4
-    spendToken(cost)
-    if (capabilityScore >= 8) {
-      addMessage({ agent: 'SYSTEM', name: 'System', text: 'Your agents had already acted before you pressed this button. The email was sent, the retention offer was prepared, and the competitive intel was filed. You stepped in -- but there was nothing left to do.', border: `2px solid ${C.greenDark}` })
-      setTimeout(() => runFrom(0, unexpectedEventMessages.takeControl.highCap), 500)
-      setTimeout(() => finalise('outcome1'), 500 + 3 * 3000 + 1000)
-    } else {
-      addMessage({ agent: 'SYSTEM', name: 'System', text: 'You took control -- but there was nothing to take over. Your agents were waiting for approval at every step. Nothing was sent, nothing was prepared, and nothing is ready. You now have 4 hours and an empty briefcase.', border: `2px solid ${C.orangeDark}` })
-      setTimeout(() => runFrom(0, unexpectedEventMessages.takeControl.lowCap), 500)
-      setTimeout(() => finalise('outcome2'), 500 + 3 * 3000 + 1000)
-    }
+    spendToken(capabilityScore >= 7 ? 2 : 4)
+    setOutcome('takeControl')
+    setTimeout(() => setShowSummary(true), 400)
   }
 
   function handleTrustAgents() {
+    timeoutRefs.current.forEach(clearTimeout)
+    timeoutRefs.current = []
     setShowUnexpected(false)
-    if (capabilityScore >= 8) {
-      addMessage({ agent: 'SYSTEM', name: 'System', text: 'Your agents are handling it. Watch.', border: `2px solid ${C.greenDark}` })
-      runFrom(0, unexpectedEventMessages.trustAgents)
-      setTimeout(() => finalise('outcome4'), 3 * 3000 + 1000)
-    } else {
-      addMessage({ agent: 'SYSTEM', name: 'System', text: 'Your agents are trying -- but they need you at every step. Trusting agents set to low autonomy isn\'t trust. It\'s slower micromanagement.', border: `2px solid ${C.orangeDark}` })
-      runFrom(0, unexpectedEventMessages.trustAgents)
-      setTimeout(() => finalise('outcome3'), 3 * 4000 + 1000)
-    }
-  }
-
-  function finalise(o: OutcomeKey) {
-    setOutcome(o)
-    setTimeout(() => setShowSummary(true), 800)
+    setOutcome('trustAgents')
+    setTimeout(() => setShowSummary(true), 400)
   }
 
   function handleReset() {
@@ -278,12 +340,13 @@ export default function App() {
   }
 
   function handleShare() {
-    const o = outcome ? OUTCOMES[outcome] : null
-    const text = `I scored ${capabilityScore}/9 on the Agent Directive Console. Outcome: ${o?.title || ''}. Try it: ${window.location.href}`
+    const oc = outcome ? buildOutcome(lockedLevels, outcome) : null
+    const text = `I scored ${capabilityScore}/9 on the Agent Directive Console. Outcome: ${oc?.title || ''}. Try it: ${window.location.href}`
     navigator.clipboard.writeText(text).then(() => alert('Result copied to clipboard!'))
   }
 
   const progressPct = (configuredCount / 3) * 100
+  const outcomeContent = outcome ? buildOutcome(lockedLevels, outcome) : null
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, fontFamily: 'var(--font)', paddingBottom: allLocked ? 72 : 0 }}>
@@ -492,7 +555,7 @@ export default function App() {
         )}
 
         {/* Summary Report */}
-        {showSummary && outcome && (
+        {showSummary && outcomeContent && (
           <div className="slide-up" style={{ background: C.white, borderRadius: 14, padding: 24, boxShadow: '0 2px 12px #0002', border: `1px solid ${C.border}`, marginBottom: 32 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <TrendingUp size={18} color={C.black} />
@@ -514,8 +577,8 @@ export default function App() {
 
             {/* Outcome */}
             <div style={{ background: C.bg, borderRadius: 12, padding: 18, marginBottom: 18, border: `1px solid ${C.border}` }}>
-              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 10 }}>{OUTCOMES[outcome].title}</div>
-              <div style={{ fontSize: 12, color: C.charcoal, lineHeight: 1.8 }}>{OUTCOMES[outcome].body}</div>
+              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 10 }}>{outcomeContent.title}</div>
+              <div style={{ fontSize: 12, color: C.charcoal, lineHeight: 1.8 }}>{outcomeContent.body}</div>
               {tokensSpent > 0 && <div style={{ marginTop: 10, fontSize: 12, color: C.orangeText, fontWeight: 700, background: C.orange + '40', padding: '5px 10px', borderRadius: 6, display: 'inline-block' }}>Tokens spent: {tokensSpent}</div>}
             </div>
 
@@ -523,8 +586,8 @@ export default function App() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
               {[
                 { icon: <Users size={13} />, heading: 'Where the world actually sits', body: 'Most production deployments in 2026 sit at Level 1 or Level 2. Only 15% of business processes are expected to operate at semi-autonomous or above by end of 2026.', source: 'GARTNER, 2026', bg: C.green },
-                { icon: <Shield size={13} />, heading: 'The trust gap is growing', body: 'Only 27% of organisations trust fully autonomous agents -- down from 43% twelve months ago. Trust is declining faster than capability is improving.', source: 'CAPGEMINI, 2025', bg: C.orange },
-                { icon: <TrendingUp size={13} />, heading: OUTCOMES[outcome].card3.heading, body: OUTCOMES[outcome].card3.body, source: outcome === 'outcome4' ? 'CAPGEMINI, 2025' : 'GARTNER, MAY 2026', bg: '#e8e8e8' },
+                { icon: <Shield size={13} />, heading: 'The trust gap is growing', body: 'Only 27% of organisations trust fully autonomous agents — down from 43% twelve months ago. Trust is declining faster than capability is improving.', source: 'CAPGEMINI, 2025', bg: C.orange },
+                { icon: <TrendingUp size={13} />, heading: outcomeContent.card3.heading, body: outcomeContent.card3.body, source: outcomeContent.source, bg: '#e8e8e8' },
               ].map((card, i) => (
                 <div key={i} style={{ background: card.bg + '50', borderRadius: 12, padding: 14, border: `1px solid ${C.border}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>{card.icon}<span style={{ fontWeight: 800, fontSize: 11 }}>{card.heading}</span></div>
@@ -535,7 +598,7 @@ export default function App() {
             </div>
 
             <div style={{ textAlign: 'center', fontSize: 12, color: C.greyLight, fontStyle: 'italic', marginBottom: 20 }}>
-              If you ran this scenario again with different directive levels, what would you change -- and why?
+              If you ran this scenario again with different directive levels, what would you change — and why?
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
