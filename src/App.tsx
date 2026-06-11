@@ -132,6 +132,7 @@ export default function App() {
   const [tokensSpent, setTokensSpent] = useState(0)
   const chatRef = useRef<HTMLDivElement>(null)
   const timeoutRefs = useRef<number[]>([])
+  const activeMsgsRef = useRef<typeof scenario>(scenario)
 
   const allLocked = AGENTS.every(a => lockedLevels[a.id] !== undefined)
   const configuredCount = Object.keys(lockedLevels).length
@@ -175,10 +176,11 @@ export default function App() {
     if (pausedAt === null) return
     const next = pausedAt + 1
     setPausedAt(null)
-    setTimeout(() => runFrom(next), 800)
+    setTimeout(() => runFrom(next, activeMsgsRef.current), 800)
   }
 
   function runFrom(startIndex: number, msgs = scenario) {
+    activeMsgsRef.current = msgs
     let delay = 0
     for (let i = startIndex; i < msgs.length; i++) {
       const msg = msgs[i]
@@ -218,6 +220,7 @@ export default function App() {
     setOutcome(null)
     setShowSummary(false)
     setPausedAt(null)
+    activeMsgsRef.current = scenario
     runFrom(0)
   }
 
