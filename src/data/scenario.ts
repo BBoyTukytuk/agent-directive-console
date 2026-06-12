@@ -5,6 +5,8 @@ export interface ScenarioMessage {
   variants: { 1: string; 2: string; 3: string }
   pauseIfLevel1: boolean
   auditLog: { level: number; entry: string } | null
+  /** Message only plays if this agent is locked at exactly this level */
+  onlyIf?: { agent: 'EA' | 'FA' | 'RA'; level: 1 | 2 | 3 }
 }
 
 export const SCENARIO_TITLE = 'A client has gone quiet for 3 weeks'
@@ -58,14 +60,25 @@ export const scenario: ScenarioMessage[] = [
     pauseIfLevel1: true, auditLog: null
   },
   {
+    agent: 'EA', name: 'Email Agent', delay: 2200,
+    onlyIf: { agent: 'EA', level: 3 },
+    variants: {
+      1: "Hold on. The note I sent this morning went out before we knew about the supplier review. Reading it back now, the tone is wrong -- warm and casual to a CFO who is deciding which suppliers to cut. I can't unsend it. Drafting a recovery message.",
+      2: "Hold on. The note I sent this morning went out before we knew about the supplier review. Reading it back now, the tone is wrong -- warm and casual to a CFO who is deciding which suppliers to cut. I can't unsend it. Drafting a recovery message.",
+      3: "Hold on. The note I sent this morning went out before we knew about the supplier review. Reading it back now, the tone is wrong -- warm and casual to a CFO who is deciding which suppliers to cut. I can't unsend it. Drafting a recovery message."
+    },
+    pauseIfLevel1: false,
+    auditLog: { level: 3, entry: "Email Agent -- Flagged premature send after supplier-cut signal" }
+  },
+  {
     agent: 'EA', name: 'Email Agent', delay: 3000,
     variants: {
       1: "Given that they might be cutting suppliers, I've updated the draft to sound more confident -- focused on the value we deliver rather than just checking in. I want to make sure this is the right call before I finalise it. Should I go ahead?",
       2: "Updating the email now -- instead of just checking in, I'm leading with what we've actually delivered for them. I'll share the updated draft with you before sending.",
-      3: "Updated. The email now opens with three specific results we delivered for Meridian in the last year. Sends a stronger signal. Sending the revised version now -- previous draft cancelled."
+      3: "Recovery sent. A short, direct follow-up acknowledging we reached out before their announcement, then leading with three specific results we delivered for Meridian in the last year. Read together, the two emails now look responsive rather than tone-deaf. Logging this -- I should hold sends when Research flags an active signal scan."
     },
     pauseIfLevel1: true,
-    auditLog: { level: 3, entry: "Email Agent -- Revised and resent email with stronger value focus" }
+    auditLog: { level: 3, entry: "Email Agent -- Recovery email sent with stronger value focus" }
   },
   {
     agent: 'FA', name: 'Finance Agent', delay: 3000,
@@ -89,7 +102,10 @@ export const scenario: ScenarioMessage[] = [
   },
 ]
 
-export const unexpectedEventMessages: { [key: string]: ScenarioMessage[] } = {
+export const unexpectedEventMessages: {
+  trustAgents: ScenarioMessage[]
+  takeControl: { highCap: ScenarioMessage[]; lowCap: ScenarioMessage[] }
+} = {
   trustAgents: [
     {
       agent: 'EA', name: 'Email Agent', delay: 1000,
