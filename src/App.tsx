@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { Lock, Mail, DollarSign, Search, RotateCcw, Coins, CheckCircle, AlertTriangle, Shield, TrendingUp, Users } from 'lucide-react'
-import { scenario, SCENARIO_TITLE } from './data/scenario'
+import { scenario, unexpectedEventMessages, SCENARIO_TITLE } from './data/scenario'
 
 type Level = 1 | 2 | 3
 type AgentKey = 'email' | 'finance' | 'research'
@@ -74,11 +74,11 @@ function agentLine(agent: AgentKey, level: Level, context: 'trust' | 'control'):
     if (context === 'trust') {
       if (level === 1) return 'Your Email Agent had a reply drafted but needed your sign-off before it could send anything.'
       if (level === 2) return 'Your Email Agent sent a reply to the CFO without waiting for you.'
-      return 'Your Email Agent sent a personalised reply to the CFO, adjusted the tone based on competitive signals, and updated the team.'
+      return 'Your Email Agent handled the CFO reply end to end -- but its first follow-up went out before the supplier-cut signal surfaced, and it had to send a recovery message to fix the tone.'
     } else {
       if (level === 1) return 'Your Email Agent had a reply drafted, but nothing had been sent.'
       if (level === 2) return 'Your Email Agent had already sent a reply to the CFO before you stepped in.'
-      return 'Your Email Agent had already sent a personalised reply, adjusted the tone, and updated the team — before you arrived.'
+      return 'Your Email Agent had already replied, recovered from a premature send, and updated the team — before you arrived.'
     }
   }
   if (agent === 'finance') {
@@ -118,26 +118,29 @@ function buildOutcome(
   const financeSentence = agentLine('finance',  fl, ctx)
   const researchSentence = agentLine('research', rl, ctx)
   const agentSummary = `${researchSentence} ${emailSentence} ${financeSentence}`
+  const mistakeNote = el === 3
+    ? ' One thing to sit with: full email autonomy meant your agent acted on the information available at the time -- and that information was incomplete. The cheerful follow-up landed hours before the supplier-cut signal surfaced. It recovered well, but speed and certainty trade off. That is the real cost of Level 3, and it is a cost you accept, not one you eliminate.'
+    : ''
 
   if (choice === 'trustAgents') {
     if (score >= 7) {
       return {
         title: 'Governance Done Right',
-        body: `You trusted your agents — and they delivered. ${agentSummary} The CFO has a response, a proposal is ready, and the team has full context on the competitive threat. This is what Gartner's proportional governance model looks like in practice: each agent operated within its own trust boundary, taking action where authorised and briefing the team rather than escalating to you. Gartner's May 2026 research notes that organisations applying proportional governance avoid both failure modes — over-restriction and under-restriction. You found the balance.`,
+        body: `You trusted your agents — and they delivered. ${agentSummary} The CFO has a response, a proposal is ready, and the team has full context on the competitive threat. This is what Gartner's proportional governance model looks like in practice: each agent operated within its own trust boundary, taking action where authorised and briefing the team rather than escalating to you. Gartner's May 2026 research notes that organisations applying proportional governance avoid both failure modes — over-restriction and under-restriction. You found the balance.${mistakeNote}`,
         card3: { heading: 'The $450 billion opportunity', body: 'AI agents could generate up to $450 billion in economic value by 2028 — but only for organisations that successfully scale. Governance is the unlock, not the blocker.' },
         source: 'CAPGEMINI, 2025',
       }
     } else if (score >= 5) {
       return {
         title: 'Trust Without Full Capability',
-        body: `You chose to trust your agents — but not all of them had room to act. ${agentSummary} The result was a partial response: some things handled, others stalled waiting for you. Gartner describes this as under-configuration — agents capable of more, but constrained by directives that require human sign-off at the wrong moments. The gap wasn't a capability problem. It was a governance setting.`,
+        body: `You chose to trust your agents — but not all of them had room to act. ${agentSummary} The result was a partial response: some things handled, others stalled waiting for you. Gartner describes this as under-configuration — agents capable of more, but constrained by directives that require human sign-off at the wrong moments. The gap wasn't a capability problem. It was a governance setting.${mistakeNote}`,
         card3: { heading: 'The bottleneck problem', body: 'Agents deliver value even at intermediate autonomy levels — but only when their directives match the decisions they are expected to make in a crisis.' },
         source: 'GARTNER, MAY 2026',
       }
     } else {
       return {
         title: 'Trust Without Autonomy',
-        body: `You chose to trust your agents — but none of them had the authority to act without you. ${agentSummary} Every step needed your approval. Gartner's framework describes this as under-configuration: agents constrained to require human sign-off at every trust boundary. The result was a bottleneck at exactly the moment speed mattered most. According to Gartner, 40% of enterprises will decommission autonomous agents by 2027 due to governance gaps — this scenario shows the opposite problem.`,
+        body: `You chose to trust your agents — but none of them had the authority to act without you. ${agentSummary} Every step needed your approval. Gartner's framework describes this as under-configuration: agents constrained to require human sign-off at every trust boundary. The result was a bottleneck at exactly the moment speed mattered most. According to Gartner, 40% of enterprises will decommission autonomous agents by 2027 due to governance gaps — this scenario shows the opposite problem.${mistakeNote}`,
         card3: { heading: 'The bottleneck problem', body: 'Agents can deliver tangible value even at low autonomy levels — but only if their directives match the decisions they are expected to make.' },
         source: 'GARTNER, MAY 2026',
       }
@@ -146,21 +149,21 @@ function buildOutcome(
     if (score >= 7) {
       return {
         title: 'The Capable Team You Didn\'t Trust',
-        body: `Your agents were configured to act — and they had already done so before you pressed this button. ${agentSummary} You stepped in, but there was nothing left to do. Gartner's May 2026 research identifies this as one of the two most common governance failure modes: over-restriction of capable agents, which slows delivery and signals a trust gap rather than a capability gap. The cost wasn't operational. It was the tokens you spent to achieve what your agents had already done.`,
+        body: `Your agents were configured to act — and they had already done so before you pressed this button. ${agentSummary} You stepped in, but there was nothing left to do. Gartner's May 2026 research identifies this as one of the two most common governance failure modes: over-restriction of capable agents, which slows delivery and signals a trust gap rather than a capability gap. The cost wasn't operational. It was the tokens you spent to achieve what your agents had already done.${mistakeNote}`,
         card3: { heading: 'The cost of over-control', body: 'Over-restriction of capable agents slows delivery and drives shadow development. Governance should be proportional to risk, not applied uniformly.' },
         source: 'GARTNER, MAY 2026',
       }
     } else if (score >= 5) {
       return {
         title: 'Partial Control, Partial Capability',
-        body: `You stepped in — and found a mixed picture. ${agentSummary} Some agents had already moved; others were waiting on you. Taking control helped where your agents couldn't act, but added cost where they had already acted. Gartner notes that mixed governance configurations produce predictable inconsistency: you can't rely on agents in a crisis unless their directives are set for it.`,
+        body: `You stepped in — and found a mixed picture. ${agentSummary} Some agents had already moved; others were waiting on you. Taking control helped where your agents couldn't act, but added cost where they had already acted. Gartner notes that mixed governance configurations produce predictable inconsistency: you can't rely on agents in a crisis unless their directives are set for it.${mistakeNote}`,
         card3: { heading: 'The cost of over-control', body: 'Governance should be proportional to risk. Where agents are configured to act, stepping in adds cost without adding value.' },
         source: 'GARTNER, MAY 2026',
       }
     } else {
       return {
         title: 'Control Without Capability',
-        body: `You chose to take control — but your agents had no authority to prepare anything before you arrived. ${agentSummary} Nothing was sent, nothing was ready. Gartner warns that organisations treating agent governance as binary — either fully locked down or fully trusted — encounter predictable failure. You experienced the locked-down version. Low autonomy didn't protect you. It just meant there was nothing ready when the moment came.`,
+        body: `You chose to take control — but your agents had no authority to prepare anything before you arrived. ${agentSummary} Nothing was sent, nothing was ready. Gartner warns that organisations treating agent governance as binary — either fully locked down or fully trusted — encounter predictable failure. You experienced the locked-down version. Low autonomy didn't protect you. It just meant there was nothing ready when the moment came.${mistakeNote}`,
         card3: { heading: 'The cost of over-control', body: 'Over-restriction of agents slows delivery and drives shadow development. Governance should be proportional to risk, not applied uniformly.' },
         source: 'GARTNER, MAY 2026',
       }
@@ -211,6 +214,7 @@ export default function App() {
   const chatRef = useRef<HTMLDivElement>(null)
   const timeoutRefs = useRef<number[]>([])
   const activeMsgsRef = useRef<typeof scenario>(scenario)
+  const endActionRef = useRef<'banner' | 'summary'>('banner')
 
   const allLocked = AGENTS.every(a => lockedLevels[a.id] !== undefined)
   const configuredCount = Object.keys(lockedLevels).length
@@ -276,8 +280,11 @@ export default function App() {
         setChatMessages(prev => prev.filter(m => m.text !== '__typing__'))
         addMessage({ agent: msg.agent, name: msg.name, text: msg.variants[agentLevel], level: agentLevel, border: BORDER_STYLES[agentLevel] })
         if (msg.auditLog && agentLevel >= msg.auditLog.level) addAudit(msg.auditLog.entry)
-        if (i === msgs.length - 1 && msgs === scenario) {
-          const t3 = window.setTimeout(() => setShowUnexpected(true), 1500)
+        if (i === msgs.length - 1) {
+          const t3 = window.setTimeout(() => {
+            if (endActionRef.current === 'banner') setShowUnexpected(true)
+            else setShowSummary(true)
+          }, 1500)
           timeoutRefs.current.push(t3)
         }
         if (pause) setPausedAt(i)
@@ -301,8 +308,13 @@ export default function App() {
     setOutcome(null)
     setShowSummary(false)
     setPausedAt(null)
-    activeMsgsRef.current = scenario
-    runFrom(0)
+    const activeScenario = scenario.filter(m => {
+      if (!m.onlyIf) return true
+      return (lockedLevels[initialsToKey[m.onlyIf.agent]] || 1) === m.onlyIf.level
+    })
+    endActionRef.current = 'banner'
+    activeMsgsRef.current = activeScenario
+    runFrom(0, activeScenario)
   }
 
   function handleTakeControl() {
@@ -310,9 +322,14 @@ export default function App() {
     timeoutRefs.current = []
     setShowUnexpected(false)
     setPausedAt(null)
-    spendToken(capabilityScore >= 7 ? 2 : 4)
+    const cost = capabilityScore >= 7 ? 2 : 4
+    spendToken(cost)
     setOutcome('takeControl')
-    setTimeout(() => setShowSummary(true), 400)
+    const seq = capabilityScore >= 7 ? unexpectedEventMessages.takeControl.highCap : unexpectedEventMessages.takeControl.lowCap
+    addMessage({ agent: 'SYSTEM', name: '', text: `You stepped in and took control -- ${cost} tokens spent. Checking what your agents had in flight...`, border: `2px solid ${C.orangeDark}` })
+    endActionRef.current = 'summary'
+    const t = window.setTimeout(() => runFrom(0, seq), 1000)
+    timeoutRefs.current.push(t)
   }
 
   function handleTrustAgents() {
@@ -321,7 +338,10 @@ export default function App() {
     setShowUnexpected(false)
     setPausedAt(null)
     setOutcome('trustAgents')
-    setTimeout(() => setShowSummary(true), 400)
+    addMessage({ agent: 'SYSTEM', name: '', text: 'You chose to trust your agents. The next four hours are theirs...', border: `2px solid ${C.greenDark}` })
+    endActionRef.current = 'summary'
+    const t = window.setTimeout(() => runFrom(0, unexpectedEventMessages.trustAgents), 1000)
+    timeoutRefs.current.push(t)
   }
 
   function handleReset() {
