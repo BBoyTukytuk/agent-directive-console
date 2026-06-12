@@ -277,7 +277,8 @@ export default function App() {
         addMessage({ agent: msg.agent, name: msg.name, text: msg.variants[agentLevel], level: agentLevel, border: BORDER_STYLES[agentLevel] })
         if (msg.auditLog && agentLevel >= msg.auditLog.level) addAudit(msg.auditLog.entry)
         if (i === msgs.length - 1 && msgs === scenario) {
-          window.setTimeout(() => setShowUnexpected(true), 1500)
+          const t3 = window.setTimeout(() => setShowUnexpected(true), 1500)
+          timeoutRefs.current.push(t3)
         }
         if (pause) setPausedAt(i)
       }, d + 1200)
@@ -308,6 +309,7 @@ export default function App() {
     timeoutRefs.current.forEach(clearTimeout)
     timeoutRefs.current = []
     setShowUnexpected(false)
+    setPausedAt(null)
     spendToken(capabilityScore >= 7 ? 2 : 4)
     setOutcome('takeControl')
     setTimeout(() => setShowSummary(true), 400)
@@ -317,6 +319,7 @@ export default function App() {
     timeoutRefs.current.forEach(clearTimeout)
     timeoutRefs.current = []
     setShowUnexpected(false)
+    setPausedAt(null)
     setOutcome('trustAgents')
     setTimeout(() => setShowSummary(true), 400)
   }
