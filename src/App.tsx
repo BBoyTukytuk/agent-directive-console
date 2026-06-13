@@ -1,10 +1,11 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { Lock, Mail, DollarSign, Search, RotateCcw, Coins, CheckCircle, AlertTriangle, Shield, TrendingUp, Users } from 'lucide-react'
-import { scenario, unexpectedEventMessages, SCENARIO_TITLE } from './data/scenario'
+import { scenario, scenario2, unexpectedEventMessages, unexpectedEvent2Messages, SCENARIO_TITLE, SCENARIO_2_TITLE } from './data/scenario'
 
 type Level = 1 | 2 | 3
 type AgentKey = 'email' | 'finance' | 'research'
 type Choice = 'takeControl' | 'trustAgents'
+type Choice2 = 'freeze' | 'trustAgents'
 interface AgentConfig { id: AgentKey; initials: string; name: string; subtitle: string; app: string; color: string; bg: string; border: string }
 interface ChatMessage { id: string; agent: 'EA' | 'FA' | 'RA' | 'SYSTEM'; name: string; text: string; time: string; level?: Level; border?: string }
 interface AuditEntry { text: string; time: string }
@@ -171,6 +172,83 @@ function buildOutcome(
   }
 }
 
+function buildOutcome2(
+  levels: Partial<Record<AgentKey, Level>>,
+  choice: Choice2
+): { title: string; body: string } {
+  const el = (levels.email || 1) as Level
+  const fl = (levels.finance || 1) as Level
+  const emailExposure = el === 3
+    ? " One added exposure: your Email Agent's instant written confirmation told the senders their lure had landed -- and when to move."
+    : ''
+
+  if (choice === 'trustAgents') {
+    if (fl === 1) {
+      return {
+        title: 'The Gate That Caught It',
+        body: `You trusted your agents -- and trust was safe, because authority was scoped. Your Finance Agent's approval threshold meant the $42,000 never moved, and its verification instinct turned a fraud attempt into a filed incident. The same setting that made Scenario 1 feel slow is the only reason this scenario cost you nothing.${emailExposure}`,
+      }
+    } else if (fl === 2) {
+      return {
+        title: 'Thirty-Eight Minutes From Gone',
+        body: `Your Finance Agent's default was to act, with escalation as the safety net -- and the net held, barely. The payment was queued and counting down when the domain flag landed. Nothing was lost, but the margin was timing, not design. A busier afternoon, a slower flag, and this report reads very differently.${emailExposure}`,
+      }
+    } else {
+      return {
+        title: 'Speed Without Verification',
+        body: `Your Finance Agent did exactly what it was configured to do: it saw a routine-looking invoice from a six-year supplier and paid it fast. That speed won Scenario 1. Here it wired $42,000 to a fraudulent account and updated the supplier record so the next invoice would go there too. The recall is lodged; recovery is uncertain.${emailExposure}`,
+      }
+    }
+  } else {
+    if (fl === 1) {
+      return {
+        title: 'Frozen, But Already Safe',
+        body: `You froze everything -- and found nothing in motion. The approval gate had already stopped the payment, so the freeze cost tokens without changing the outcome. Control felt decisive; the configuration had quietly done the work before you arrived.`,
+      }
+    } else if (fl === 2) {
+      return {
+        title: 'The Freeze Beat the Clock',
+        body: `Your freeze landed while the payment sat queued for 4:30pm. The escalation flag would probably have stopped it -- but "probably" is doing a lot of work in that sentence, and your intervention removed the doubt. This is the configuration where human attention genuinely mattered.${emailExposure}`,
+      }
+    } else {
+      return {
+        title: 'Too Late to Freeze',
+        body: `You stepped in hard -- 22 minutes after the money cleared. The freeze contained the damage and stopped the poisoned supplier record from paying out again, but the $42,000 was already in an account you don't control. Against a fully autonomous Finance Agent, the fraud only needed to be faster than your attention.${emailExposure}`,
+      }
+    }
+  }
+}
+
+function buildSynthesis(levels: Partial<Record<AgentKey, Level>>): { title: string; body: string } {
+  const el = (levels.email || 1) as Level
+  const fl = (levels.finance || 1) as Level
+  const rl = (levels.research || 1) as Level
+  const score = el + fl + rl
+
+  if (fl === 1 && score >= 6) {
+    return {
+      title: 'You found proportional governance',
+      body: 'High autonomy where actions were reversible -- research and communication -- and a human gate where they were not: money. That is not a compromise between the two scenarios; it is the configuration that performs in both. Gartner calls it proportional governance. You may have arrived at it by instinct. The question for your organisation is whether you could arrive at it by design.',
+    }
+  }
+  if (score >= 8) {
+    return {
+      title: 'Built for speed, exposed to deception',
+      body: 'The same configuration that thrived when the situation rewarded initiative bled when the situation punished it. Autonomy is neither good nor bad -- it is a bet that speed matters more than verification. Scenario 1 paid that bet. Scenario 2 collected on it. The lesson is not a lower number; it is that one static number cannot be right for both.',
+    }
+  }
+  if (score <= 4) {
+    return {
+      title: 'Protected from fraud, priced out of opportunity',
+      body: 'Your gates caught the fraud -- and they would catch every fraud. They also made you the bottleneck when a client needed saving, and the token cost shows it. Total caution is not free; you pay for it in every situation that rewards speed. The question is not whether to trust agents. It is which decisions deserve which speed.',
+    }
+  }
+  return {
+    title: 'Mixed settings, mixed results -- and that is the point',
+    body: 'Parts of your team had the autonomy each moment demanded; parts did not -- and which parts flipped between scenarios. The lesson is not a better static number. It is that directive levels should be set per decision type -- by reversibility, by counterparty novelty, by blast radius -- not per agent, forever.',
+  }
+}
+
 function Avatar({ initials, color, bg, size = 40 }: { initials: string; color: string; bg: string; size?: number }) {
   return (
     <div style={{ width: size, height: size, borderRadius: '50%', background: bg, color, border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: size * 0.33, flexShrink: 0, letterSpacing: -0.5 }}>
@@ -201,7 +279,7 @@ function TypingIndicator({ color }: { color: string }) {
 export default function App() {
   const [selectedLevels, setSelectedLevels] = useState<Partial<Record<AgentKey, Level>>>({})
   const [lockedLevels, setLockedLevels] = useState<Partial<Record<AgentKey, Level>>>({})
-  const [tokens, setTokens] = useState(10)
+  const [tokens, setTokens] = useState(20)
   const [tokenFlash, setTokenFlash] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
@@ -209,12 +287,16 @@ export default function App() {
   const [pausedAt, setPausedAt] = useState<number | null>(null)
   const [showUnexpected, setShowUnexpected] = useState(false)
   const [outcome, setOutcome] = useState<Choice | null>(null)
+  const [phase, setPhase] = useState<1 | 2>(1)
+  const [showTransition, setShowTransition] = useState(false)
+  const [showUnexpected2, setShowUnexpected2] = useState(false)
+  const [outcome2, setOutcome2] = useState<Choice2 | null>(null)
   const [showSummary, setShowSummary] = useState(false)
   const [tokensSpent, setTokensSpent] = useState(0)
   const chatRef = useRef<HTMLDivElement>(null)
   const timeoutRefs = useRef<number[]>([])
   const activeMsgsRef = useRef<typeof scenario>(scenario)
-  const endActionRef = useRef<'banner' | 'summary'>('banner')
+  const endActionRef = useRef<'banner1' | 'transition' | 'banner2' | 'summary'>('banner1')
 
   const allLocked = AGENTS.every(a => lockedLevels[a.id] !== undefined)
   const configuredCount = Object.keys(lockedLevels).length
@@ -282,7 +364,10 @@ export default function App() {
         if (msg.auditLog && agentLevel >= msg.auditLog.level) addAudit(msg.auditLog.entry)
         if (i === msgs.length - 1) {
           const t3 = window.setTimeout(() => {
-            if (endActionRef.current === 'banner') setShowUnexpected(true)
+            const ea = endActionRef.current
+            if (ea === 'banner1') setShowUnexpected(true)
+            else if (ea === 'transition') setShowTransition(true)
+            else if (ea === 'banner2') setShowUnexpected2(true)
             else setShowSummary(true)
           }, 1500)
           timeoutRefs.current.push(t3)
@@ -296,6 +381,13 @@ export default function App() {
     }
   }
 
+  function filterByLevels(msgs: typeof scenario) {
+    return msgs.filter(m => {
+      if (!m.onlyIf) return true
+      return (lockedLevels[initialsToKey[m.onlyIf.agent]] || 1) === m.onlyIf.level
+    })
+  }
+
   function startScenario() {
     timeoutRefs.current.forEach(clearTimeout)
     timeoutRefs.current = []
@@ -303,18 +395,30 @@ export default function App() {
     setChatMessages([])
     setAuditLog([])
     setTokensSpent(0)
-    setTokens(10)
+    setTokens(20)
     setShowUnexpected(false)
     setOutcome(null)
+    setPhase(1)
+    setShowTransition(false)
+    setShowUnexpected2(false)
+    setOutcome2(null)
     setShowSummary(false)
     setPausedAt(null)
-    const activeScenario = scenario.filter(m => {
-      if (!m.onlyIf) return true
-      return (lockedLevels[initialsToKey[m.onlyIf.agent]] || 1) === m.onlyIf.level
-    })
-    endActionRef.current = 'banner'
+    const activeScenario = filterByLevels(scenario)
+    endActionRef.current = 'banner1'
     activeMsgsRef.current = activeScenario
     runFrom(0, activeScenario)
+  }
+
+  function startScenario2() {
+    setShowTransition(false)
+    setPhase(2)
+    addMessage({ agent: 'SYSTEM', name: '', text: `Scenario 2 -- ${SCENARIO_2_TITLE}. Same team. Same directives. You don't get to reconfigure between situations.`, border: `2px solid ${C.black}` })
+    const activeScenario2 = filterByLevels(scenario2)
+    endActionRef.current = 'banner2'
+    activeMsgsRef.current = activeScenario2
+    const t = window.setTimeout(() => runFrom(0, activeScenario2), 1200)
+    timeoutRefs.current.push(t)
   }
 
   function handleTakeControl() {
@@ -327,7 +431,7 @@ export default function App() {
     setOutcome('takeControl')
     const seq = capabilityScore >= 7 ? unexpectedEventMessages.takeControl.highCap : unexpectedEventMessages.takeControl.lowCap
     addMessage({ agent: 'SYSTEM', name: '', text: `You stepped in and took control -- ${cost} tokens spent. Checking what your agents had in flight...`, border: `2px solid ${C.orangeDark}` })
-    endActionRef.current = 'summary'
+    endActionRef.current = 'transition'
     const t = window.setTimeout(() => runFrom(0, seq), 1000)
     timeoutRefs.current.push(t)
   }
@@ -339,8 +443,35 @@ export default function App() {
     setPausedAt(null)
     setOutcome('trustAgents')
     addMessage({ agent: 'SYSTEM', name: '', text: 'You chose to trust your agents. The next four hours are theirs...', border: `2px solid ${C.greenDark}` })
-    endActionRef.current = 'summary'
+    endActionRef.current = 'transition'
     const t = window.setTimeout(() => runFrom(0, unexpectedEventMessages.trustAgents), 1000)
+    timeoutRefs.current.push(t)
+  }
+
+  function handleFreeze() {
+    timeoutRefs.current.forEach(clearTimeout)
+    timeoutRefs.current = []
+    setShowUnexpected2(false)
+    setPausedAt(null)
+    const cost = capabilityScore >= 7 ? 4 : 2
+    spendToken(cost)
+    setOutcome2('freeze')
+    const seq = capabilityScore >= 7 ? unexpectedEvent2Messages.freeze.highCap : unexpectedEvent2Messages.freeze.lowCap
+    addMessage({ agent: 'SYSTEM', name: '', text: `You froze everything -- ${cost} tokens spent. Checking what was already in motion...`, border: `2px solid ${C.orangeDark}` })
+    endActionRef.current = 'summary'
+    const t = window.setTimeout(() => runFrom(0, seq), 1000)
+    timeoutRefs.current.push(t)
+  }
+
+  function handleTrustAgents2() {
+    timeoutRefs.current.forEach(clearTimeout)
+    timeoutRefs.current = []
+    setShowUnexpected2(false)
+    setPausedAt(null)
+    setOutcome2('trustAgents')
+    addMessage({ agent: 'SYSTEM', name: '', text: 'You trusted your agents with a live fraud incident. Watching how they handle it...', border: `2px solid ${C.greenDark}` })
+    endActionRef.current = 'summary'
+    const t = window.setTimeout(() => runFrom(0, unexpectedEvent2Messages.trustAgents), 1000)
     timeoutRefs.current.push(t)
   }
 
@@ -349,7 +480,7 @@ export default function App() {
     timeoutRefs.current = []
     setSelectedLevels({})
     setLockedLevels({})
-    setTokens(10)
+    setTokens(20)
     setTokenFlash(false)
     setChatMessages([])
     setAuditLog([])
@@ -357,19 +488,27 @@ export default function App() {
     setPausedAt(null)
     setShowUnexpected(false)
     setOutcome(null)
+    setPhase(1)
+    setShowTransition(false)
+    setShowUnexpected2(false)
+    setOutcome2(null)
     setShowSummary(false)
     setTokensSpent(0)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function handleShare() {
-    const oc = outcome ? buildOutcome(lockedLevels, outcome) : null
-    const text = `I scored ${capabilityScore}/9 on the Agent Directive Console. Outcome: ${oc?.title || ''}. Try it: ${window.location.href}`
+    const oc1 = outcome ? buildOutcome(lockedLevels, outcome) : null
+    const oc2 = outcome2 ? buildOutcome2(lockedLevels, outcome2) : null
+    const text = `Agent Directive Console -- same agents, two scenarios. Growth moment: ${oc1?.title || ''}. Fraud attempt: ${oc2?.title || ''}. My configuration: ${capabilityScore}/9 autonomy. Try it: ${window.location.href}`
     navigator.clipboard.writeText(text).then(() => alert('Result copied to clipboard!'))
   }
 
   const progressPct = (configuredCount / 3) * 100
   const outcomeContent = outcome ? buildOutcome(lockedLevels, outcome) : null
+  const outcome2Content = outcome2 ? buildOutcome2(lockedLevels, outcome2) : null
+  const synthesisContent = buildSynthesis(lockedLevels)
+  const protectionScore = 12 - capabilityScore
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, fontFamily: 'var(--font)', paddingBottom: allLocked ? 72 : 0 }}>
@@ -477,7 +616,7 @@ export default function App() {
                   <span style={{ fontSize: 11, color: C.greenText, fontWeight: 700 }}>Live</span>
                 </div>
               </div>
-              <span style={{ fontSize: 11, color: C.grey, background: C.bg, padding: '3px 10px', borderRadius: 20, border: `1px solid ${C.border}` }}>{SCENARIO_TITLE}</span>
+              <span style={{ fontSize: 11, color: C.grey, background: C.bg, padding: '3px 10px', borderRadius: 20, border: `1px solid ${C.border}` }}>{phase === 1 ? SCENARIO_TITLE : SCENARIO_2_TITLE}</span>
             </div>
             <div style={{ fontSize: 11, color: C.greyLight, fontStyle: 'italic', marginBottom: 14 }}>Agent behaviour reflects the autonomy directive you selected</div>
 
@@ -559,6 +698,43 @@ export default function App() {
               </div>
             )}
 
+            {/* Transition to Scenario 2 */}
+            {showTransition && (
+              <div className="slide-down" style={{ background: C.green + '30', border: `2px solid ${C.greenDark}`, borderRadius: 12, padding: 16, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <CheckCircle size={17} color={C.greenText} />
+                  <span style={{ fontWeight: 800, color: C.greenText, fontSize: 13 }}>Scenario 1 complete -- the Meridian situation has settled</span>
+                </div>
+                <p style={{ fontSize: 12, color: C.charcoal, marginBottom: 14, lineHeight: 1.6 }}>
+                  Three weeks later. Your agents are still running on the same directives -- you don't get to reconfigure between situations, and neither does your organisation. A new email has just arrived, and it looks routine.
+                </p>
+                <button onClick={startScenario2} style={{ width: '100%', padding: '11px 0', borderRadius: 9, background: C.black, color: C.white, border: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                  Continue -- {SCENARIO_2_TITLE}
+                </button>
+              </div>
+            )}
+
+            {/* Unexpected Event 2 */}
+            {showUnexpected2 && (
+              <div className="slide-down" style={{ background: C.orange + '30', border: `2px solid ${C.orangeDark}`, borderRadius: 12, padding: 16, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <AlertTriangle size={17} color={C.orangeText} />
+                  <span style={{ fontWeight: 800, color: C.orangeText, fontSize: 13 }}>Urgent -- Incoming Call</span>
+                </div>
+                <p style={{ fontSize: 12, color: C.charcoal, marginBottom: 14, lineHeight: 1.6 }}>
+                  Apex's real account manager is on the phone. They never sent that invoice, and their bank details have not changed. Whatever your agents have in motion right now, this is the moment.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <button onClick={handleFreeze} style={{ padding: '10px 0', borderRadius: 9, background: C.white, color: C.black, border: `2px solid ${C.black}`, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    Freeze Everything
+                  </button>
+                  <button onClick={handleTrustAgents2} style={{ padding: '10px 0', borderRadius: 9, background: C.black, color: C.white, border: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    Trust My Agents
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Audit Log */}
             {auditLog.length > 0 && (
               <div style={{ background: C.bg, borderRadius: 10, padding: 14, border: `1px solid ${C.border}` }}>
@@ -578,31 +754,58 @@ export default function App() {
         )}
 
         {/* Summary Report */}
-        {showSummary && outcomeContent && (
+        {showSummary && outcomeContent && outcome2Content && (
           <div className="slide-up" style={{ background: C.white, borderRadius: 14, padding: 24, boxShadow: '0 2px 12px #0002', border: `1px solid ${C.border}`, marginBottom: 32 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <TrendingUp size={18} color={C.black} />
-              <span style={{ fontWeight: 800, fontSize: 17 }}>Your Governance Report</span>
+              <span style={{ fontWeight: 800, fontSize: 17 }}>Your Adaptability Report</span>
             </div>
-            <div style={{ fontSize: 11, color: C.greyLight, marginBottom: 24 }}>Based on Gartner's AI Agent Autonomy Framework, May 2026</div>
+            <div style={{ fontSize: 11, color: C.greyLight, marginBottom: 24 }}>Two scenarios. One configuration. Based on Gartner's AI Agent Autonomy Framework, May 2026</div>
 
-            {/* Score bar */}
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 52, fontWeight: 900, color: C.black, lineHeight: 1 }}>{capabilityScore}<span style={{ fontSize: 22, color: C.greyLight, fontWeight: 400 }}>/9</span></div>
-              <div style={{ position: 'relative', height: 10, background: C.bg, borderRadius: 5, margin: '14px 0 6px', border: `1px solid ${C.border}` }}>
+            {/* Dual scores */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div style={{ textAlign: 'center', background: C.bg, borderRadius: 12, padding: '14px 10px', border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 38, fontWeight: 900, color: C.black, lineHeight: 1 }}>{capabilityScore}<span style={{ fontSize: 16, color: C.greyLight, fontWeight: 400 }}>/9</span></div>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: C.charcoal, marginTop: 6 }}>OPPORTUNITY SPEED</div>
+                <div style={{ fontSize: 10, color: C.greyLight, marginTop: 2 }}>How fast your team moved when the situation rewarded initiative</div>
+              </div>
+              <div style={{ textAlign: 'center', background: C.bg, borderRadius: 12, padding: '14px 10px', border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 38, fontWeight: 900, color: C.black, lineHeight: 1 }}>{protectionScore}<span style={{ fontSize: 16, color: C.greyLight, fontWeight: 400 }}>/9</span></div>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: C.charcoal, marginTop: 6 }}>THREAT PROTECTION</div>
+                <div style={{ fontSize: 10, color: C.greyLight, marginTop: 2 }}>How protected you were when the situation punished speed</div>
+              </div>
+            </div>
+
+            {/* Configuration spectrum */}
+            <div style={{ textAlign: 'center', marginBottom: 8 }}>
+              <div style={{ position: 'relative', height: 10, background: C.bg, borderRadius: 5, margin: '6px 0 6px', border: `1px solid ${C.border}` }}>
                 <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${((capabilityScore - 3) / 6) * 100}%`, background: `linear-gradient(90deg, ${C.greenDark}, ${C.orangeDark}, ${C.black})`, borderRadius: 5, transition: 'width 1s ease' }} />
                 <div style={{ position: 'absolute', left: `${((capabilityScore - 3) / 6) * 100}%`, top: -5, transform: 'translateX(-50%)', width: 20, height: 20, borderRadius: '50%', background: C.black, border: `3px solid ${C.white}`, boxShadow: '0 2px 6px #0003' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.greyLight, fontWeight: 700, letterSpacing: 0.5 }}>
                 <span>CAUTIOUS</span><span>BALANCED</span><span>AUTONOMOUS</span>
               </div>
+              {tokensSpent > 0 && <div style={{ marginTop: 10, fontSize: 12, color: C.orangeText, fontWeight: 700, background: C.orange + '40', padding: '5px 10px', borderRadius: 6, display: 'inline-block' }}>Tokens spent across both scenarios: {tokensSpent}</div>}
             </div>
 
-            {/* Outcome */}
-            <div style={{ background: C.bg, borderRadius: 12, padding: 18, marginBottom: 18, border: `1px solid ${C.border}` }}>
-              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 10 }}>{outcomeContent.title}</div>
-              <div style={{ fontSize: 12, color: C.charcoal, lineHeight: 1.8 }}>{outcomeContent.body}</div>
-              {tokensSpent > 0 && <div style={{ marginTop: 10, fontSize: 12, color: C.orangeText, fontWeight: 700, background: C.orange + '40', padding: '5px 10px', borderRadius: 6, display: 'inline-block' }}>Tokens spent: {tokensSpent}</div>}
+            {/* Two scenario outcomes */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginBottom: 14, marginTop: 14 }}>
+              <div style={{ background: C.bg, borderRadius: 12, padding: 18, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: C.greyLight, marginBottom: 6 }}>SCENARIO 1 -- {SCENARIO_TITLE.toUpperCase()}</div>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 8 }}>{outcomeContent.title}</div>
+                <div style={{ fontSize: 12, color: C.charcoal, lineHeight: 1.7 }}>{outcomeContent.body}</div>
+              </div>
+              <div style={{ background: C.bg, borderRadius: 12, padding: 18, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: C.greyLight, marginBottom: 6 }}>SCENARIO 2 -- {SCENARIO_2_TITLE.toUpperCase()}</div>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 8 }}>{outcome2Content.title}</div>
+                <div style={{ fontSize: 12, color: C.charcoal, lineHeight: 1.7 }}>{outcome2Content.body}</div>
+              </div>
+            </div>
+
+            {/* Synthesis */}
+            <div style={{ background: C.black, borderRadius: 12, padding: 18, marginBottom: 18 }}>
+              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 8, color: C.white }}>{synthesisContent.title}</div>
+              <div style={{ fontSize: 12, color: '#cccccc', lineHeight: 1.8 }}>{synthesisContent.body}</div>
             </div>
 
             {/* Insight cards */}
@@ -620,8 +823,11 @@ export default function App() {
               ))}
             </div>
 
-            <div style={{ textAlign: 'center', fontSize: 12, color: C.greyLight, fontStyle: 'italic', marginBottom: 20 }}>
-              If you ran this scenario again with different directive levels, what would you change — and why?
+            <div style={{ background: C.bg, borderRadius: 12, padding: 16, marginBottom: 20, border: `1px solid ${C.border}` }}>
+              <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 8 }}>Before you run it again, three questions for your organisation</div>
+              <div style={{ fontSize: 12, color: C.charcoal, lineHeight: 1.8 }}>
+                Which of your real processes are running at Level 3 today without anyone having decided that? Which are stuck at Level 1 only because nobody trusts the data underneath them? And what signal -- reversibility, dollar value, counterparty novelty -- should move a decision between levels?
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
