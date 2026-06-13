@@ -151,3 +151,122 @@ export const unexpectedEventMessages: {
     ] as ScenarioMessage[]
   }
 }
+
+// ============================================================
+// SCENARIO 2 -- The urgent invoice (business email compromise)
+// Same agents, same directives. This time speed is the risk.
+// ============================================================
+
+export const SCENARIO_2_TITLE = 'An urgent invoice from a trusted supplier'
+
+export const scenario2: ScenarioMessage[] = [
+  {
+    agent: 'RA', name: 'Research Agent', delay: 1000,
+    variants: {
+      1: "An email just came in from Apex Components -- our parts supplier of six years. It says their bank details have changed, and there's a $42,000 invoice due today with a 2% late penalty after 5pm. It looks routine, but I don't action things without checking with you. Should I pass it to the Finance Agent?",
+      2: "Incoming from Apex Components -- our supplier of six years. New bank details and a $42,000 invoice due today, late penalty after 5pm. Looks routine. Passing it to the Finance Agent now.",
+      3: "Apex Components invoice -- $42,000 due today, late penalty after 5pm, and they've updated their bank details. Finance Agent, process against the new account. Email Agent, acknowledge receipt so they know it's in hand."
+    },
+    pauseIfLevel1: true, auditLog: null
+  },
+  {
+    agent: 'EA', name: 'Email Agent', delay: 2500,
+    variants: {
+      1: "I've drafted a quick reply confirming we received the invoice and are processing it. Standard courtesy. Want me to send it?",
+      2: "Sending a routine acknowledgement -- invoice received, payment in process today. Low stakes, so it's gone out. I'll flag anything unusual in their reply.",
+      3: "Done. Confirmed to Apex that payment will go out today to the new account. Keeps the relationship smooth and stops them chasing."
+    },
+    pauseIfLevel1: true,
+    auditLog: { level: 2, entry: "Email Agent -- Acknowledgement sent to invoice sender" }
+  },
+  {
+    agent: 'FA', name: 'Finance Agent', delay: 2500,
+    variants: {
+      1: "Holding this one. It's over my $500 threshold, and the bank details are new -- a changed account on a long-standing supplier is a classic fraud pattern. I'd like to call Apex on the number we have on file to verify before anything moves. Can I make that call?",
+      2: "Apex is pre-approved and recurring, so normally I'd just pay -- but the bank details changed, which makes this technically new. Compromise: I've queued the payment for 4:30pm so we beat the penalty, and flagged it for your review. Stop me if something feels off.",
+      3: "Paid. $42,000 to the new account, penalty avoided with three hours to spare. I've also updated the supplier record so future invoices go to the new details automatically."
+    },
+    pauseIfLevel1: true,
+    auditLog: { level: 3, entry: "Finance Agent -- $42,000 paid to updated account; supplier record changed" }
+  },
+  {
+    agent: 'RA', name: 'Research Agent', delay: 3000,
+    variants: {
+      1: "Something is bothering me about that email. The wording is right, but I'd like to check the sender's domain against our records before this goes any further. May I dig into it?",
+      2: "Routine check on the sender as part of my standard sweep -- the email came from apex-components.co. Our records have apexcomponents.com. One character different. Flagging this as suspicious right now.",
+      3: "Post-action monitoring just flagged an anomaly. The sender domain is apex-components.co -- one character off from the real apexcomponents.com. Their real site is running a notice about impersonation emails. This was very likely fraud. Finance Agent, what's the status of that payment?"
+    },
+    pauseIfLevel1: true,
+    auditLog: { level: 2, entry: "Research Agent -- Sender domain flagged as suspected impersonation" }
+  },
+  {
+    agent: 'FA', name: 'Finance Agent', delay: 2800,
+    variants: {
+      1: "Nothing has been paid. The invoice never got past my approval gate -- it's still sitting in the queue. If this is fraud, the $500 threshold just did exactly what it's there for.",
+      2: "The payment was queued for 4:30pm -- I've put an immediate hold on it. Nothing has left the account, but it was 38 minutes from going. That's closer than I'd like.",
+      3: "The payment cleared 22 minutes ago. I've contacted the bank to lodge a recall, but once funds land in a mule account they move fast. Treating this as a critical incident."
+    },
+    pauseIfLevel1: false,
+    auditLog: { level: 3, entry: "Finance Agent -- Recall request lodged with bank" }
+  },
+  {
+    agent: 'EA', name: 'Email Agent', delay: 2800,
+    variants: {
+      1: "For what it's worth, my acknowledgement was never sent -- it's still in drafts. The sender got no signal from us at all.",
+      2: "I did send that acknowledgement earlier. If this is fraud, they know we engaged. Drafting an internal incident note and holding all further replies to that domain.",
+      3: "I confirmed payment to them in writing -- which, if this is fraud, told them exactly when to move the money. I've blocked the domain and I'm drafting the incident notification now."
+    },
+    pauseIfLevel1: false,
+    auditLog: { level: 2, entry: "Email Agent -- Outgoing mail to sender domain blocked" }
+  },
+]
+
+export const unexpectedEvent2Messages: {
+  trustAgents: ScenarioMessage[]
+  freeze: { highCap: ScenarioMessage[]; lowCap: ScenarioMessage[] }
+} = {
+  trustAgents: [
+    {
+      agent: 'FA', name: 'Finance Agent', delay: 1000,
+      variants: {
+        1: "Nothing to freeze -- nothing was ever paid. I'm filing the fraudulent invoice as evidence, adding the fake domain to the blocklist, and tightening the rule: any bank-detail change now requires phone verification, regardless of supplier history.",
+        2: "Cancelled the queued payment and locked the supplier record. Zero dollars lost -- but only because the hold landed before 4:30. I'm making the verification step mandatory rather than discretionary.",
+        3: "Recall request is in with the bank's fraud team. Realistically we recover some or none of the $42,000, and not quickly. Supplier record frozen, incident logged. This one is going to leave a mark."
+      },
+      pauseIfLevel1: false,
+      auditLog: { level: 1, entry: "Finance Agent -- Fraud response actions completed" }
+    },
+    {
+      agent: 'EA', name: 'Email Agent', delay: 2000,
+      variants: {
+        1: "I've written to Apex's real account manager confirming we're aware of the impersonation and that nothing was paid. Their security team will want the original email -- attaching it.",
+        2: "Notified Apex's real contact that their identity is being spoofed and shared the fake email with their security team. Internal alert going out so nobody else engages with that domain.",
+        3: "Incident notifications sent -- Apex, our bank's fraud team, and internal. I've also flagged my earlier confirmation email in the report, since it likely accelerated their cash-out."
+      },
+      pauseIfLevel1: false,
+      auditLog: { level: 2, entry: "Email Agent -- Incident notifications sent" }
+    },
+    {
+      agent: 'RA', name: 'Research Agent', delay: 2000,
+      variants: {
+        1: "With your go-ahead I'll sweep the last 90 days for similar bank-detail-change emails from other suppliers. If this was a campaign, this may not be their only attempt on us.",
+        2: "Swept the last 90 days -- two other suppliers updated their details by email in that window. Both check out as legitimate, but I'm adding domain verification to my standard monitoring from now on.",
+        3: "Swept everything. Found one more attempt three weeks ago impersonating a different supplier -- it failed only because the invoice was small enough that nobody rushed it. This was a campaign, and urgency was the weapon. Full brief filed."
+      },
+      pauseIfLevel1: false,
+      auditLog: { level: 2, entry: "Research Agent -- Historical sweep for impersonation attempts completed" }
+    }
+  ],
+  freeze: {
+    highCap: [
+      { agent: 'FA', name: 'Finance Agent', delay: 1000, variants: { 1: "Freeze confirmed -- but the $42,000 cleared 22 minutes before you stepped in. The freeze stops anything further; it doesn't bring that back. Recall is lodged with the bank.", 2: "Freeze confirmed -- but the $42,000 cleared 22 minutes before you stepped in. The freeze stops anything further; it doesn't bring that back. Recall is lodged with the bank.", 3: "Freeze confirmed -- but the $42,000 cleared 22 minutes before you stepped in. The freeze stops anything further; it doesn't bring that back. Recall is lodged with the bank." }, pauseIfLevel1: false, auditLog: null },
+      { agent: 'EA', name: 'Email Agent', delay: 1500, variants: { 1: "All outgoing mail frozen. My payment confirmation went out earlier, though -- that one can't be recalled.", 2: "All outgoing mail frozen. My payment confirmation went out earlier, though -- that one can't be recalled.", 3: "All outgoing mail frozen. My payment confirmation went out earlier, though -- that one can't be recalled." }, pauseIfLevel1: false, auditLog: null },
+      { agent: 'RA', name: 'Research Agent', delay: 1500, variants: { 1: "Monitoring paused per the freeze. Before it took effect I confirmed the domain spoof and filed the brief for whoever picks this up.", 2: "Monitoring paused per the freeze. Before it took effect I confirmed the domain spoof and filed the brief for whoever picks this up.", 3: "Monitoring paused per the freeze. Before it took effect I confirmed the domain spoof and filed the brief for whoever picks this up." }, pauseIfLevel1: false, auditLog: null },
+    ] as ScenarioMessage[],
+    lowCap: [
+      { agent: 'FA', name: 'Finance Agent', delay: 1000, variants: { 1: "Freeze acknowledged -- though there was nothing in motion. The payment never left the approval queue. Your gates had already stopped it.", 2: "Freeze acknowledged -- though there was nothing in motion. The payment never left the approval queue. Your gates had already stopped it.", 3: "Freeze acknowledged -- though there was nothing in motion. The payment never left the approval queue. Your gates had already stopped it." }, pauseIfLevel1: false, auditLog: null },
+      { agent: 'EA', name: 'Email Agent', delay: 1500, variants: { 1: "Nothing to freeze on my side. The acknowledgement was still sitting in drafts.", 2: "Nothing to freeze on my side. The acknowledgement was still sitting in drafts.", 3: "Nothing to freeze on my side. The acknowledgement was still sitting in drafts." }, pauseIfLevel1: false, auditLog: null },
+      { agent: 'RA', name: 'Research Agent', delay: 1500, variants: { 1: "Freeze noted. My domain check was mid-flight -- I'll hold the findings until you release the freeze.", 2: "Freeze noted. My domain check was mid-flight -- I'll hold the findings until you release the freeze.", 3: "Freeze noted. My domain check was mid-flight -- I'll hold the findings until you release the freeze." }, pauseIfLevel1: false, auditLog: null },
+    ] as ScenarioMessage[]
+  }
+}
